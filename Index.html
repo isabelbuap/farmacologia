@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Buscador de Fármacos (familia / fármaco)</title>
+<style>
+  :root{
+    --bg:#faf7f5; --ink:#111; --muted:#6b7280; --line:#e5e7eb;
+    --card:#fff; --accent:#7c3aed; --accent-2:#f5f3ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Poppins',system-ui,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);overflow-x:hidden;
+  }
+
+  /* ==================== BARRA SUPERIOR ==================== */
+  header{
+    position:fixed;top:0;left:0;right:0;z-index:100;
+    background:rgba(255,255,255,0.75);
+    backdrop-filter:blur(12px);
+    box-shadow:0 4px 20px rgba(0,0,0,0.1);
+    padding:12px 18px;
+    display:flex;flex-wrap:wrap;gap:10px;
+    justify-content:center;align-items:center;
+  }
+  header input[type="text"]{
+    flex:1;min-width:220px;
+    padding:10px 14px;border-radius:30px;
+    border:1px solid var(--line);
+    font-size:16px;
+  }
+  header .modes{
+    display:flex;gap:10px;align-items:center;
+    font-size:14px;color:#333;
+  }
+  header button{
+    border:none;border-radius:30px;
+    padding:10px 18px;cursor:pointer;
+    font-weight:600;transition:.2s ease;
+  }
+  header button.primary{
+    background:linear-gradient(90deg,#7c3aed,#a78bfa);
+    color:#fff;
+  }
+  header button:hover{transform:scale(1.05)}
+
+  /* ==================== PORTADA ANIMADA ==================== */
+#intro{
+  position:relative;
+  height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  transition:opacity 1s ease,visibility 1s ease,height 0.8s ease,margin 0.8s ease;
+  background:radial-gradient(circle at top left,#c084fc,#7c3aed,#6366f1);
+  color:#fff;
+}
+#intro.hidden{
+  opacity:0;
+  visibility:hidden;
+  height:0 !important;
+  margin:0 !important;
+  overflow:hidden;
+}
+
+  .intro-content{
+    position:relative;
+    z-index:10;
+    background:rgba(255,255,255,0.1);
+    backdrop-filter:blur(18px);
+    border-radius:28px;
+    padding:60px 80px;
+    text-align:center;
+    box-shadow:0 10px 25px rgba(0,0,0,0.2);
+  }
+  .logo{
+    width:140px;height:140px;border-radius:50%;
+    background:radial-gradient(circle at top left,#a78bfa,#7c3aed);
+    color:#fff;font-size:60px;
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 20px;
+    box-shadow:0 0 30px rgba(124,58,237,0.6);
+    animation:pulse 2.5s infinite;
+  }
+  @keyframes pulse{
+    0%,100%{transform:scale(1);}
+    50%{transform:scale(1.05);}
+  }
+  .intro-content h2{font-size:36px;margin-bottom:10px;}
+  .intro-content p{font-size:18px;color:#f0f0ff;margin:4px 0;}
+
+  .pastilla{
+    position:absolute;width:50px;height:22px;border-radius:11px;
+    background:linear-gradient(90deg,#ff6b6b 50%,#fff 50%);
+    box-shadow:0 3px 6px rgba(0,0,0,0.25);opacity:0.8;
+    animation:flotar 10s linear infinite;
+  }
+  @keyframes flotar{
+    0%{transform:translateY(110vh) rotate(0deg);opacity:0;}
+    10%{opacity:1;}
+    100%{transform:translateY(-120vh) rotate(360deg);opacity:0;}
+  }
+
+  /* ==================== BUSCADOR / APP ==================== */
+  .app{max-width:1100px;margin:auto;padding:18px;margin-top:120px;}
+  .search{display:none;} /* oculto, ya usamos header fijo */
+  .hint{margin:8px 2px;color:var(--muted);font-size:13px}
+  .grid{margin-top:14px;display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 6px 18px rgba(0,0,0,.06)}
+  .thumb{aspect-ratio:16/10;background:#f3f4f6 center/cover no-repeat;border-bottom:1px solid var(--line)}
+  .card-body{padding:12px}
+  .card h3{margin:0 0 6px 0;font-size:18px}
+  .pill{display:inline-block;font-size:12px;color:#4c1d95;background:var(--accent-2);padding:4px 8px;border-radius:999px}
+  .card button{margin-top:10px;border:1px solid var(--line);background:#fff;padding:8px 10px;border-radius:10px;cursor:pointer}
+  .back{margin:0px 0 8px;display:flex;gap:8px;align-items:center}
+  .back button{border:1px solid var(--line);background:#fff;padding:8px 12px;border-radius:10px;cursor:pointer}
+  .title{font-size:22px;font-weight:800;margin:8px 0;letter-spacing:.3px}
+  .family{color:var(--muted)}
+  .tabs{display:flex;gap:8px;border-bottom:1px solid var(--line);margin-bottom:12px;flex-wrap:wrap}
+  .tab-btn{padding:8px 12px;border-radius:10px 10px 0 0;border:1px solid var(--line);background:#fff;cursor:pointer}
+  .tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .panel{display:none}
+  .panel.active{display:block}
+  .panel img{width:100%;height:auto;max-height:80vh;object-fit:contain;display:block;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 22px rgba(0,0,0,.07)}
+  .msg{margin:14px 2px;color:#b00020;font-weight:600}
+  .empty{margin:24px 2px;color:var(--muted)}
+  .watermark-top {
+    top:0;left:0;right:0;background:rgba(124,58,237,0.2);
+    color:#7C3AED;text-align:left;padding:6px 14px;
+    font-size:10px;font-weight:600;border-radius:12px 12px 0 0;
+    pointer-events:none;z-index:99;
+  }
+
+  @media(max-width:650px){
+    .intro-content{padding:40px 20px;}
+    .intro-content h2{font-size:30px;}
+    header input[type="text"]{min-width:160px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== PORTADA ANIMADA ==================== -->
+<div id="intro">
+  <div class="pastilla" style="left:5%;animation-delay:0s;animation-duration:11s"></div>
+  <div class="pastilla" style="left:20%;animation-delay:2s;animation-duration:13s"></div>
+  <div class="pastilla" style="left:40%;animation-delay:1s;animation-duration:10s"></div>
+  <div class="pastilla" style="left:60%;animation-delay:4s;animation-duration:14s"></div>
+  <div class="pastilla" style="left:80%;animation-delay:3s;animation-duration:12s"></div>
+
+  <div class="intro-content">
+    <div class="logo">
+        <img src="logo_escudo.png" alt="Logo" />
+    </div>
+    <h2>Proyecto de Farmacología</h2>
+    <p><b>Benemérita Universidad Autónoma de Puebla </b> </p>
+    <p>Isabel Sánchez Avendaño</p>
+    <p>5° Semestre</p>
+    <p>Lic. en Medicina</p>
+  </div>
+</div>
+
+<!-- ==================== CABECERA / BUSCADOR ==================== -->
+<header>
+  <input id="q" list="sugerencias" type="text" placeholder="Buscar por familia o fármaco…" />
+  <datalist id="sugerencias"></datalist>
+  <div class="modes">
+    <label><input type="radio" name="modo" value="familia" checked> Familia</label>
+    <label><input type="radio" name="modo" value="farmaco"> Fármaco</label>
+  </div>
+  <button class="primary" id="btnBuscar">Buscar</button>
+  <button id="btnLimpiar">Limpiar</button>
+</header>
+
+<!-- ==================== APP ==================== -->
+<div class="app">
+  <div id="msg" class="msg"></div>
+  <section id="cards" class="grid" aria-live="polite"></section>
+
+  <section id="detail" hidden>
+    <div class="back">
+      <button id="backBtn">← Atrás</button>
+      <div class="title" id="detailTitle"></div>
+      <div class="family" id="detailFamily"></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn" id="tabDose" data-target="dose">Dosis</button>
+      <button class="tab-btn" id="tabInfo" data-target="info">Información complementaria</button>
+    </div>
+
+    <div id="dose" class="panel">
+      <div class="watermark-top">© Isabel Sánchez Avendaño</div>
+      <img id="doseImg" alt="Imagen de dosis">
+    </div>
+
+    <div id="info" class="panel">
+      <div class="watermark-top">© Isabel Sánchez Avendaño</div>
+      <img id="infoImg" alt="Imagen informativa">
+    </div>
+  </section>
+</div>
+
+<script src="data.js"></script>
+<script>
+const introEl = document.getElementById("intro");
+const qEl = document.getElementById("q");
+const msgEl = document.getElementById("msg");
+const cardsEl = document.getElementById("cards");
+const detailEl = document.getElementById("detail");
+const btnBuscar = document.getElementById("btnBuscar");
+const btnLimpiar = document.getElementById("btnLimpiar");
+
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+const norm=s=>(s||"").toString().normalize("NFD").replace(/\p{Diacritic}/gu,"").trim().toLowerCase();
+
+(function(){
+  const families=[...new Set(DATA.map(x=>x.familia))].sort();
+  const drugs=[...new Set(DATA.map(x=>x.farmaco))].sort();
+  const dl=$("#sugerencias"); dl.innerHTML="";
+  families.concat(drugs).forEach(v=>{
+    const o=document.createElement("option");o.value=v;dl.appendChild(o);
+  });
+})();
+
+let lastMode=null,lastQuery="",lastScroll=0,currentItem=null;
+
+function renderFamilyCards(familyQuery){
+  const nQuery=norm(familyQuery);
+  const items=DATA.filter(x=>norm(x.familia).includes(nQuery));
+  cardsEl.innerHTML=""; detailEl.hidden=true;
+  if(!items.length){
+    cardsEl.innerHTML=`<div class="empty">No se encontraron fármacos para “${familyQuery}”.</div>`;
+    return;
+  }
+  items.forEach(item=>{
+    const card=document.createElement("article");
+    card.className="card";
+    const thumb=document.createElement("div");
+    thumb.className="thumb";
+    const thumbUrl=item.DosisUrlImage||"";
+    thumb.style.backgroundImage=thumbUrl?`url('${thumbUrl}')`:"linear-gradient(135deg,#ede9fe,#fdf2f8)";
+    const body=document.createElement("div");
+    body.className="card-body";
+    body.innerHTML=`<h3>${item.farmaco}</h3><span class="pill">${item.familia}</span><button type="button">Ver detalles</button>`;
+    body.querySelector("button").addEventListener("click",()=>openDetail(item));
+    card.appendChild(thumb); card.appendChild(body); cardsEl.appendChild(card);
+  });
+}
+
+function openDetail(item){
+  currentItem=item;
+  lastScroll=window.scrollY;
+  $("#detailTitle").textContent=item.farmaco;
+  $("#detailFamily").textContent=`Familia: ${item.familia}`;
+  $("#doseImg").removeAttribute("src"); $("#infoImg").removeAttribute("src");
+  $("#dose").classList.remove("active"); $("#info").classList.remove("active");
+  $$(".tab-btn").forEach(b=>b.classList.remove("active"));
+  detailEl.hidden=false; cardsEl.innerHTML="";
+  activateTab("dose");
+}
+
+function activateTab(target){
+  $$(".tab-btn").forEach(b=>b.classList.toggle("active", b.dataset.target===target));
+  $$(".panel").forEach(p=>p.classList.toggle("active", p.id===target));
+  if(!currentItem) return;
+  if(target==="dose"){
+    const url=currentItem.DosisUrlImage;
+    if(url && !$("#doseImg").getAttribute("src")) $("#doseImg").src=url;
+  }else{
+    const url=currentItem.InformaciinComplementariaUrlImage || currentItem.InformacionComplementariaUrlImage;
+    if(url && !$("#infoImg").getAttribute("src")) $("#infoImg").src=url;
+  }
+}
+
+btnBuscar.addEventListener("click",()=>{
+  msgEl.textContent="";
+  const q=qEl.value.trim();
+  if(!q){
+    msgEl.textContent="Escribe un término de búsqueda.";
+    return;
+  }
+
+  const mode=document.querySelector("input[name='modo']:checked").value;
+  lastMode=mode; lastQuery=q;
+
+  // Ocultar portada con animación
+  if(!introEl.classList.contains("hidden")){
+    introEl.classList.add("hidden");
+    // esperar la transición antes de hacer scroll
+    document.body.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(()=>window.scrollTo({top:0,behavior:"smooth"}),600);
+  } else {
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+
+  // Mostrar resultados
+  if(mode==="familia"){
+    renderFamilyCards(q);
+  } else {
+    const nQ=norm(q);
+    const match=DATA.find(x=>norm(x.farmaco)===nQ)||DATA.find(x=>norm(x.farmaco).includes(nQ));
+    if(match){
+      cardsEl.innerHTML="";
+      openDetail(match);
+    } else {
+      msgEl.textContent=`No se encontró el fármaco “${q}”.`;
+      cardsEl.innerHTML="";
+      detailEl.hidden=true;
+    }
+  }
+});
+
+btnLimpiar.addEventListener("click",()=>{
+  qEl.value="";msgEl.textContent="";cardsEl.innerHTML="";detailEl.hidden=true;
+  lastMode=null;lastQuery="";lastScroll=0;qEl.focus();
+  introEl.classList.remove("hidden");
+});
+
+$("#backBtn").addEventListener("click",()=>{
+  detailEl.hidden=true;
+  if(lastMode==="familia" && lastQuery){
+    renderFamilyCards(lastQuery);
+    qEl.value=lastQuery;
+    document.querySelector('input[name="modo"][value="familia"]').checked=true;
+    requestAnimationFrame(()=>window.scrollTo(0,lastScroll));
+  }else{
+    cardsEl.innerHTML="";
+  }
+});
+
+$("#tabDose").addEventListener("click",()=>activateTab("dose"));
+$("#tabInfo").addEventListener("click",()=>activateTab("info"));
+</script>
+</body>
+</html>
